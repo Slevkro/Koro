@@ -1,3 +1,4 @@
+from typing import Type
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -5,6 +6,12 @@ import streamlit as st
 from streamlit_option_menu import option_menu
 from PIL import Image
 from apyori import apriori
+from scipy.spatial.distance import cdist
+import seaborn as sns
+
+
+from Distancias import Distancias
+from Cluster import Cluster
 
 # Configuraciones iniciales
 
@@ -72,7 +79,8 @@ if selected == "Asociacion":
     st.title(f"DATOS")
 
     #LECTURA DE LOS DATOS
-    uploaded_file = st.file_uploader("Choose a file")
+    #uploaded_file = None
+    uploaded_file = st.file_uploader("Choose a file", key = 'asociacion')
     if uploaded_file is not None:
         dataframe = pd.read_csv(uploaded_file)
         st.write(dataframe)
@@ -171,10 +179,14 @@ if selected == "Asociacion":
                 with c1:
                     st.write(tablaResultados)
                 with c2:
-                    st.subheader('Resumen')
-                    st.markdown('Se han generado ' + str(num_reglas) + ' reglas')
-                    st.markdown('Ejemplo con la ultima regla.')
-                    st.markdown('En la ultima regla se relacionan los items: (' + str(aux[0]) + ') con (' + str(aux[1]) + ') teniendo un porcentaje de importancia dentro del conjunto de datos (Soporte) de ' + str(round(aux[2] * 100, 2)) + '%, un porcentaje de fiabilidad (Confianza) de ' + str(round(aux[3] * 100, 2)) + '% y por ultimo la regla representa un aumento en las posibilidades en '+str(round(aux[4], 2))+' veces (Elevacion) de que las personas que esten interesadas en (' + str(aux[0]) + ') tambien lo esten en (' +  str(aux[1]) + ').')
+                    if num_reglas != 0:
+                        st.subheader('Resumen')
+                        st.markdown('Se han generado ' + str(num_reglas) + ' reglas')
+                        st.markdown('Ejemplo con la ultima regla.')
+                        st.markdown('En la ultima regla se relacionan los items: (' + str(aux[0]) + ') con (' + str(aux[1]) + ') teniendo un porcentaje de importancia dentro del conjunto de datos (Soporte) de ' + str(round(aux[2] * 100, 2)) + '%, un porcentaje de fiabilidad (Confianza) de ' + str(round(aux[3] * 100, 2)) + '% y por ultimo la regla representa un aumento en las posibilidades en '+str(round(aux[4], 2))+' veces (Elevacion) de que las personas que esten interesadas en (' + str(aux[0]) + ') tambien lo esten en (' +  str(aux[1]) + ').')
+                    else:
+                        st.subheader('No se ha generado ninguna regla')
+                        st.markdown('Intente cambiando los parametros seleccionados')
                 
             
             
@@ -185,7 +197,135 @@ if selected == "Asociacion":
 
 
 if selected == "Distancias":
-    st.title(f" {selected}")
+    with st.expander("Resumen del Algoritmo"):
+        st.title(f"Distancias")
+        st.markdown("Las métricas de distancia nos ayudaran a obtener índices que miden el nivel de similitud entre los objetos los cuales pueden ser, por ejemplo, usuarios, rutas, productos, etc. a su vez éstas luego servirán como la entrada para nuestros algoritmos de inteligencia artificial.")
+        st.markdown("Debemos de tener en cuenta que para poder obtener estas distancias debemos de filtrar las características para que sean numéricas. Además de que cada métrica de distancia nos servirá para propósitos o soluciones diferentes, por ejemplo, ***Chebyshev*** nos puede ser útil para procesos industriales, mientras que ***Manhattan*** para medir distancias un poco más apegadas a la realidad donde no es tan factible irse por la distancia mas corta la cual sería una línea diagonal como la hipotenusa de las distancias ***Euclidianas***, sin embargo, en la actualidad se buscan distancias más factibles las cuales describen una distancia más generalizada o flexible como ***Minkowsky*** que define un parámetro lambda para obtener este efecto la cual por ejemplo con valor de 1.5 es un punto medio entre Euclidiana y Manhattan.")
+
+
+    st.title(f"DATOS")
+    flexometro = Distancias()
+    flexometro.LeerDatos(id = 'distancias')
+    
+    if flexometro.archivo is not None:
+        st.title(f"METRICAS")
+        options = st.multiselect(
+        'Selecciona las metricas de distancia con las que desees trabajar, puedes escribirla o seleccionarla si no se muestra inicialmente.',
+        ['Euclideana', 'Chebyshev', 'Manhattan', 'Minkowski'],
+        ['Euclideana', 'Manhattan'])
+
+        #st.write('You selected:', options)
+
+        for option in options:
+            distancia = pd.DataFrame(flexometro.CalcularDistancia(option))
+            
+            st.markdown("<h1 style='text-align: center;'>" + option + "</h1>", unsafe_allow_html=True)
+            #Seleccion del rango
+            values = st.slider(
+                'Selecciona el rango de valores de la matriz de distancias.',
+                0, distancia.shape[0]-1, (0, distancia.shape[0]-1), key = option)
+            #st.write('Values:', values)
+            
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                #st.markdown('Introduce un numero entero para el redondeo.')
+                redondeo = st.number_input('Introduce un numero entero para el redondeo.', min_value=0, max_value=8, value=3, step=1, format='%d', key = option)
+            with c2:
+                if option == 'Minkowski':
+                    la_lambda = st.number_input('Introduce un numero del parametro lambda.', min_value=0.0, max_value=3.0, value=1.5, step=0.1, format='%f', key = option)
+            with c3:
+                optimizacion = st.radio(
+                "Selecciona el proceso que buscas para optimizacion.",
+                ('Ninguno', 'Normalizar', 'Estandarizar'), key = option)
+
+                if optimizacion == 'Normalizar':
+                    distancia = flexometro.CalcularDistanciaNormalizada(option, values[0], values[1])
+                elif optimizacion == 'Estandarizar':
+                    distancia = flexometro.CalcularDistanciaEstandarizada(option, values[0], values[1])
+                elif optimizacion == 'Ninguno':
+                    distancia = flexometro.CiertasDistancias(values[0], values[1], option)
+            st.write(distancia)
+        
+        with st.expander("Correlacion de atributos."):
+            st.title(f"CORRELACION")
+            flexometro.Correlaciones()
+            co1, co2= st.columns(2)
+            with co1: 
+                st.subheader('Matriz de correlaciones.')
+                st.write(flexometro.matrizCorrelaciones)
+            with co2:
+                st.subheader('Atributos del conjunto de datos.')
+                st.markdown('Se tienen en total **' + str(flexometro.matrizCorrelaciones.shape[0]) + '** atributos en el conjunto de datos.')
+                #st.write(flexometro.matrizCorrelaciones.columns.values)
+                #st.write(flexometro.matrizCorrelaciones.shape[1])
+                atributos = list(flexometro.matrizCorrelaciones.columns.values)
+                for i in range (0, flexometro.matrizCorrelaciones.shape[1], 2):
+                    st.text('*  ' + atributos[i] + '        * ' + atributos[i+1])
+                
+            
+            st.title(f"GRAFICO DE FRECUENCIAS.")
+            mapa_de_calor =plt.figure(figsize=(14,7))
+            MatrizInf = np.triu(flexometro.matrizCorrelaciones)
+            sns.heatmap(flexometro.matrizCorrelaciones, cmap='RdBu_r', annot=True, mask=MatrizInf)
+            st.pyplot(mapa_de_calor)
+
+            #DstEuclidiana = cdist(flexometro.datos, flexometro.datos, metric='euclidean')
+            #print(type(DstEuclidiana))
+            #MEuclidiana = pd.DataFrame(DstEuclidiana)
+            #st.write(MEuclidiana)
+            
+
 
 if selected == "Clustering":
-    st.title(f" {selected}")
+    with st.expander("Resumen del Algoritmo"):
+        st.title(f"Clustering")
+        
+        st.markdown("Los algoritmos de clustering nos sirven para segmentar un determinado conjunto de datos en diversos grupos, cada cual con sus características y particularidades que los diferencian. Estas segmentaciones pueden ser muy útiles para obtener perfiles de usuario, patrones climáticos, etc.")
+        st.markdown("La técnica de clustering particional puede llegar a resultar muy útil cuando lo que se busca es una segmentación con un mayor número de registros ya que cuando este número incrementa la implementación de un árbol para organizar a los clústeres (Clustering Jerárquico) se vuelve inestable y más lenta donde el hecho de estandarizar y normalizar los datos si bien puede ayudar al rendimiento no lo hace a tal punto de hacer viable el clustering jerárquico, por el contrario hay que tener en cuenta que para poder utilizar la técnica particional se tiene que conocer cuál es el número de clústeres con el que queremos terminar, métrica que es muy importante ya que si se aplica mal podría llevar a tener sesgos en el análisis de los clústeres pero que requiere de un procesamiento extra para realizarse (Método del codo o la rodilla).")
+        
+
+    st.title(f"DATOS")
+    colador = Cluster()
+    colador.LeerDatos(id = 'clustering')
+
+    if colador.archivo is not None:
+        st.title(f"ANALISIS CORRELACIONAL")
+        st.write('Matriz de correlaciones')
+        mapa_de_calor = colador.getMapaDeCalor()
+        st.write(colador.distancias.matrizCorrelaciones)
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+            st.subheader('Seleccion de caracteristicas.')
+            colador.variables_iniciales = list(colador.distancias.matrizCorrelaciones.columns.values)
+            options = st.multiselect(
+            'Elimina las variables con las que no desees trabajar, puedes observar sus relaciones en el mapa de calor a la derecha.',
+            colador.variables_iniciales,
+            colador.variables_iniciales)
+
+            colador.variables_finales = list(options)
+            st.markdown('La matriz de datos con sus variables finales se encuentra a continuacion.')
+            matriz_variables_finales = colador.getVariablesFinales()
+            st.write(matriz_variables_finales)
+
+        #st.write('You selected:', options)
+        with c2: 
+            st.subheader('Mapa de calor.')
+            st.pyplot(mapa_de_calor)
+
+        st.subheader('Escalado de datos.')
+        optimizacion = st.radio(
+                "Selecciona el proceso que buscas para optimizacion del algoritmo.",
+                ('Ninguno', 'Normalizar', 'Estandarizar'), key = 'clustering')
+        if optimizacion == 'Normalizar':
+            matriz_variables_finales = pd.DataFrame(colador.NormalizarMatriz(matriz_variables_finales))
+            
+        elif optimizacion == 'Estandarizar':
+            matriz_variables_finales = pd.DataFrame(colador.EstandarizarMatriz(matriz_variables_finales))
+        
+        matriz_variables_finales.columns = colador.variables_finales
+        
+        st.markdown('Matriz de entrada a los algoritmos de clustering.')
+        st.write(matriz_variables_finales)
+
