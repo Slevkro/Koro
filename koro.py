@@ -263,7 +263,7 @@ if selected == "Distancias":
                     st.text('*  ' + atributos[i] + '        * ' + atributos[i+1])
                 
             
-            st.title(f"GRAFICO DE FRECUENCIAS.")
+            st.title(f"MAPA DE CALOR.")
             mapa_de_calor =plt.figure(figsize=(14,7))
             MatrizInf = np.triu(flexometro.matrizCorrelaciones)
             sns.heatmap(flexometro.matrizCorrelaciones, cmap='RdBu_r', annot=True, mask=MatrizInf)
@@ -328,4 +328,69 @@ if selected == "Clustering":
         
         st.markdown('Matriz de entrada a los algoritmos de clustering.')
         st.write(matriz_variables_finales)
+
+        st.title(f"CLUSTERING JERARQUICO")
+        st.markdown('***El arbol puede tardar un tiempo dependiendo del numero de registros y la cantidad de variables seleccionada.***')
+        options = st.multiselect(
+            'Selecciona las metricas de distancia con las que desees trabajar, puedes escribirla o seleccionarla si no se muestra inicialmente.',
+            ['Euclideana', 'Chebyshev', 'Manhattan', 'Minkowski'],
+            ['Euclideana', 'Manhattan'])
+        distancias = {'Euclideana': 'euclidean', 'Chebyshev': 'chebyshev', 'Manhattan': 'cityblock', 'Minkowski': 'minkowski'}
+        for option in options:
+            st.markdown("<h1 style='text-align: center;'>Cluster con Distancia " + option + "</h1>", unsafe_allow_html=True)
+            arbol = colador.getClusterJerarquico(distancias[option], matriz_variables_finales)
+            #Meter los arboles a una lista y preguntar si es not null para que no los este haciendo a cada rato
+            st.pyplot(arbol)
+            colu1, colu2 = st.columns(2)
+
+            with colu1: 
+                st.subheader('Número de Clusters.')
+                st.markdown('Basandose en el arbol que se le muestra en la parte superior, introduzca el numero de clusters.')
+            with colu2:
+                num_clusters = st.number_input('Introduce un numero de clusters.', min_value=0, max_value=40, value=2, step=1, format='%d', key = option + str(' jer'))
+            
+            num_elementos, centroides_jerarquico = colador.getCentroidesJerarquico(matriz_variables_finales, num_clusters, distancias[option])
+
+            column1, column2 = st.columns(2)
+
+            with column1:
+                st.subheader('Conteo de elementos por cluster.')
+                st.write(num_elementos)
+            with column2:
+                st.subheader('Centroides del conjunto de datos.')
+                st.write(centroides_jerarquico)
+
+        st.title(f"CLUSTERING PARTICIONAL")
+        pilar1, pilar2, pilar3 = st.columns(3)
+        with pilar1:
+            for i in range (0, 3):
+                st.write('')
+            st.subheader('Metodo de la rodilla.')
+            st.markdown('A continuacion se mostrara la grafica del medodo de la rodilla (Knee Method), intente ubicar cual es el punto donde cambia de direccion abruptamente el cual indica el numero de clusteres optimo para la segmentacion.')
+        
+        with pilar2:
+            st.write()
+            for i in range (0, 8):
+                st.write('')
+            num_clusters_par = st.number_input('Introduce un numero de clusters.', min_value=0, max_value=40, value=2, step=1, format='%d', key = option + str(' par'))
+
+        with pilar3:
+            rodilla = colador.getRodilla(matriz_variables_finales)
+            st.write(rodilla)
+        
+        with st.expander("Implementacion del metodo de la rodilla"):
+            st.title(f"Distancias")
+            rodilla_ = colador.getRodillaExacta()
+            #st.write(rodilla_)
+        
+        num_clusters_par_final, centroides_particional = colador.ClusterParticional(matriz_variables_finales, num_clusters_par)
+        columna1, columna2 = st.columns(2)
+
+        with columna1:
+            st.subheader('Conteo de elementos por cluster.')
+            st.write(num_clusters_par_final)
+        with columna2:
+            st.subheader('Centroides del conjunto de datos.')
+            st.write(centroides_particional)
+        
 
