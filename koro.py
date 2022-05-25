@@ -1,4 +1,6 @@
+from cmath import log
 from typing import Type
+from numpy import var
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,6 +14,7 @@ import seaborn as sns
 
 from Distancias import Distancias
 from Cluster import Cluster
+from Logistica import Logistica
 
 # Configuraciones iniciales
 
@@ -32,8 +35,8 @@ st.markdown(hide_menu_style, unsafe_allow_html=True)
 
 selected = option_menu(
         menu_title=None,
-        options=["KORO", "...", "...", "Asociacion", "Distancias", "Clustering"],
-        icons=["option", "", "", "link", "people", "palette2"],
+        options=["KORO","Clasificacion", "Pronostico", "Regresion", "Asociacion", "Distancias", "Clustering"],
+        icons=["option","grid-1x2", "cloud-drizzle", "graph-up arrow", "link", "people", "palette2"],
         menu_icon="cast",
         default_index=0,
         orientation="horizontal",
@@ -289,7 +292,7 @@ if selected == "Clustering":
     colador.LeerDatos(id = 'clustering')
 
     if colador.archivo is not None:
-        st.title(f"ANALISIS CORRELACIONAL")
+        st.title(f"SELECCION DE CARACTERISTICAS")
         st.write('Matriz de correlaciones')
         mapa_de_calor = colador.getMapaDeCalor()
         st.write(colador.distancias.matrizCorrelaciones)
@@ -393,4 +396,234 @@ if selected == "Clustering":
             st.subheader('Centroides del conjunto de datos.')
             st.write(centroides_particional)
         
+if selected == "Regresion":
+    with st.expander("Resumen del Algoritmo"):
+        st.title(f"REGRESION LOGISTICA")
+        st.markdown("La regresión logística busca predecir valores binarios los cuales corresponden a la etiqueta de los registros (0/1, verdadero/falso, etc). Lo hace aplicando una transformación a la regresión lineal ya que por sí sola una regresión lineal no nos serviría para predecir esta variable binaria.")
+
+        columna1, columna2 = st.columns(2)
+
+        with columna1:
+            st.markdown("Para hacer la transformación se usa la función sigmoide.")
+            sigmoide = Image.open('./Images/sigmoid.png')
+            st.image(sigmoide)
+        with columna2:
+            for i in range (5):
+                st.markdown('')
+            st.markdown('Dicha función asigna una probabilidad la cual puede ir de 0 a 1, donde si es mayor a 0.5 asigna el valor de 1 y si es menor o igual a 0.5 entonces asigna el valor de 0.')
+
+
+    st.title(f"DATOS")
+
+    #LECTURA DE LOS DATOS
+    logistico = Logistica()
+    logistico.LeerDatos(id = 'logistica')
+
+    if logistico.archivo is not None:
+        logistico.datos = logistico.datos.dropna()
+        st.title(f"SELECCION DE CARACTERISTICAS")
+        st.write('Matriz de correlaciones')
+        mapa_de_calor = logistico.getMapaDeCalor()
+        st.write(logistico.distancias.matrizCorrelaciones)
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+            st.subheader('Seleccion de caracteristicas.')
+            logistico.variables_iniciales = list(logistico.distancias.matrizCorrelaciones.columns.values)
+            options = st.multiselect(
+            'Elimina las variables con las que no desees trabajar, puedes observar sus relaciones en el mapa de calor a la derecha.',
+            logistico.variables_iniciales,
+            logistico.variables_iniciales)
+
+            logistico.variables_finales = list(options)
+            st.markdown('La matriz de datos con sus variables finales se encuentra a continuacion.')
+            matriz_variables_finales = logistico.getVariablesFinales()
+            st.write(matriz_variables_finales)
+
+        #st.write('You selected:', options)
+        with c2: 
+            st.subheader('Mapa de calor.')
+            st.pyplot(mapa_de_calor)
+        
+        st.write('')
+        st.subheader('Defina la variable clase y sus valores.')
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            variable_clase = st.selectbox(
+                'Variable clase',
+                logistico.datos.columns)
+            st.write('Variable Clase:', variable_clase)
+        with col2:
+            primer_clase = st.text_input('PRIMERA', 'A')
+            st.write('Nombre de la primera clase: ', primer_clase)
+        with col3:
+            segunda_clase = st.text_input('SEGUNDA', 'B')
+            st.write('Nombre de la primera clase: ', segunda_clase)
+        
+        #st.write(logistico.datos)
+        clases = []
+        contador = 0
+        for clase in pd.unique(logistico.datos[variable_clase]):
+            #st.write(clase)
+            clases.append(clase)            
+            if contador > 1:
+                st.header('LA VARIABLE TIENE MAS DE DOS CLASES O POSIBLES VALORES')
+                break
+            contador = contador + 1
+        st.write('')
+        st.subheader('Defina el numero de registros por clase para el conjunto de datos.')
+        logistico.datos[variable_clase] = logistico.datos[variable_clase].replace({clases[0]: 0, clases[1]: 1})
+
+        colu1, colu2, colu3 = st.columns(3)
+        with colu1:
+            #st.write(logistico.datos)
+            st.markdown('Cantidad de elementos por clase.')
+            tamanios = logistico.datos.groupby(variable_clase).size()
+            st.write(tamanios)
+        with colu2:
+            texto = "Tamaño de la clase " + str(primer_clase)
+            clase_1_size = st.number_input(texto, min_value=0, max_value=tamanios[0], value=tamanios[0], step=1, format='%d')
+        with colu3: 
+            texto = "Tamaño de la clase " + str(segunda_clase)
+            clase_2_size = st.number_input(texto, min_value=0, max_value=tamanios[1], value=tamanios[1], step=1, format='%d')
+
+        
+
+        
+
+        ceros = logistico.datos[logistico.datos[variable_clase] == 0.0 ]
+        ceros = ceros.sample(n=clase_1_size, random_state=1)
+
+        unos = logistico.datos[logistico.datos[variable_clase] == 1.0 ]
+        unos = unos.sample(n=clase_2_size, random_state=1)
+        logistico.datos = pd.concat([ceros, unos])
+        st.write(logistico.datos)
+
+        #X = np.array(logistico.datos[logistico.variables_finales].drop([variable_clase]))
+        #PUEDE QUE SE MUERA PORQUE NO SE CONSIDERA LA VARIABLE CLASE DENTRO DE LAS VARIABLES FINALES
+        #logistico.variables_finales.append(variable_clase)
+
+        #st.write(logistico.variables_finales)
+        st.subheader('CONJUNTOS DE DATOS PARA ENTRENAMIENTO')
+        column1, column2 = st.columns(2)
+
+        with column1: 
+            st.markdown('Conjunto de variables independientes')
+            X = np.array(logistico.datos[logistico.variables_finales])
+            st.write(X)
+
+        with column2:
+            st.markdown('Conjunto de la variable clase')
+            Y = np.array(logistico.datos[[variable_clase]])
+            st.write(Y)
+        
+        X_train, X_validation, Y_train, Y_validation = logistico.SeparaConjunto(X, Y)
+
+        logistico.crearModelo(X_train, Y_train)
+
+        probabilidades = logistico.getMatrizProbabilidades(X_validation)
+        st.write('Probabilidades de los registros')
+        st.write(probabilidades)
+
+        score = logistico.getScore(X_validation, Y_validation)
+        st.write('Score')
+        st.write(score)
+        
+        Y_Clasificacion, matriz_clasificacion = logistico.getMatrizClasificacion(Y_validation, X_validation)
+        st.write('Matriz de clasificacion')
+        st.write(matriz_clasificacion)
+
+        st.write('reporte')
+        logistico.getReporte(X_validation, Y_validation, Y_Clasificacion)
+        
+
+        intercepto, coeficientes = logistico.getEcuacion()
+        st.write('Ecuacion')
+        st.write(intercepto)
+        st.write(coeficientes)
+"""
+if selected == "Pronostico":
+    with st.expander("Resumen del Algoritmo"):
+        st.title(f"ARBOLES DE DECISION")
+        st.markdown("...")
+        st.title(f"BOSQUES ALEATORIOS")
+        st.markdown("...")     
+
+    st.title(f"DATOS")
+
+    #LECTURA DE LOS DATOS
+    pronostico = Logistica()
+    pronostico.LeerDatos(id = 'pronostico')
+
+    if pronostico.archivo is not None:
+        st.title(f"SELECCION DE CARACTERISTICAS")
+        st.write('Matriz de correlaciones')
+        mapa_de_calor = pronostico.getMapaDeCalor()
+        st.write(pronostico.distancias.matrizCorrelaciones)
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+            st.subheader('Seleccion de caracteristicas.')
+            pronostico.variables_iniciales = list(pronostico.distancias.matrizCorrelaciones.columns.values)
+            options = st.multiselect(
+            'Elimina las variables con las que no desees trabajar, puedes observar sus relaciones en el mapa de calor a la derecha.',
+            pronostico.variables_iniciales,
+            pronostico.variables_iniciales)
+
+            pronostico.variables_finales = list(options)
+            st.markdown('La matriz de datos con sus variables finales se encuentra a continuacion.')
+            matriz_variables_finales = pronostico.getVariablesFinales()
+            st.write(matriz_variables_finales)
+
+        #st.write('You selected:', options)
+        with c2: 
+            st.subheader('Mapa de calor.')
+            st.pyplot(mapa_de_calor)
+
+if selected == "Clasificacion":
+    with st.expander("Resumen del Algoritmo"):
+        st.title(f"ARBOLES DE DECISION")
+        st.markdown("...")
+        st.title(f"BOSQUES ALEATORIOS")
+        st.markdown("...")
+
+
+
+    st.title(f"DATOS")
+
+    #LECTURA DE LOS DATOS
+    clasificacion = Logistica()
+    clasificacion.LeerDatos(id = 'logistica')
+
+    if clasificacion.archivo is not None:
+        st.title(f"SELECCION DE CARACTERISTICAS")
+        st.write('Matriz de correlaciones')
+        mapa_de_calor = clasificacion.getMapaDeCalor()
+        st.write(clasificacion.distancias.matrizCorrelaciones)
+
+        c1, c2 = st.columns(2)
+
+        with c1:
+            st.subheader('Seleccion de caracteristicas.')
+            clasificacion.variables_iniciales = list(clasificacion.distancias.matrizCorrelaciones.columns.values)
+            options = st.multiselect(
+            'Elimina las variables con las que no desees trabajar, puedes observar sus relaciones en el mapa de calor a la derecha.',
+            clasificacion.variables_iniciales,
+            clasificacion.variables_iniciales)
+
+            clasificacion.variables_finales = list(options)
+            st.markdown('La matriz de datos con sus variables finales se encuentra a continuacion.')
+            matriz_variables_finales = clasificacion.getVariablesFinales()
+            st.write(matriz_variables_finales)
+
+        #st.write('You selected:', options)
+        with c2: 
+            st.subheader('Mapa de calor.')
+            st.pyplot(mapa_de_calor)
+
+"""
 

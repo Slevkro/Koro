@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import streamlit as st
 from sklearn.preprocessing import StandardScaler, MinMaxScaler 
+from sklearn import model_selection
 
 class Algoritmo:
     estandarizar = StandardScaler()                               
@@ -35,3 +36,10 @@ class Algoritmo:
     
     def NormalizarMatriz(self, matriz):
         return self.normalizar.fit_transform(matriz)
+    
+    def SeparaConjunto(self, X, Y):
+        X_train, X_validation, Y_train, Y_validation = model_selection.train_test_split(X, Y, 
+                                                                                test_size = 0.2, 
+                                                                                random_state = 1234,
+                                                                                shuffle = True)
+        return X_train, X_validation, Y_train, Y_validation
