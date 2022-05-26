@@ -1,13 +1,9 @@
 from sklearn import linear_model
-from sklearn import model_selection
 from sklearn.metrics import classification_report
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import accuracy_score
+import streamlit as st
 
 from numpy import empty
 import pandas as pd
-from scipy.spatial.distance import cdist    # Para el cálculo de distancias
-from scipy.spatial import distance
 import seaborn as sns
 
 import numpy as np
@@ -43,8 +39,8 @@ class Logistica(Algoritmo):
         return Y_Clasificacion, Matriz_Clasificacion
     
     def getReporte(self, X_validation, Y_validation, Y_Clasificacion):
-        print("Exactitud", self.Clasificacion.score(X_validation, Y_validation))
-        print(classification_report(Y_validation, Y_Clasificacion))
+        st.write("Exactitud", self.Clasificacion.score(X_validation, Y_validation))
+        st.write(classification_report(Y_validation, Y_Clasificacion))
 
     def getEcuacion(self):
         intercepto = self.Clasificacion.intercept_

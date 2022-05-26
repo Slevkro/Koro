@@ -9,12 +9,16 @@ from streamlit_option_menu import option_menu
 from PIL import Image
 from apyori import apriori
 from scipy.spatial.distance import cdist
+from sklearn.utils import shuffle
 import seaborn as sns
 
+from sklearn.tree import DecisionTreeRegressor
 
 from Distancias import Distancias
 from Cluster import Cluster
 from Logistica import Logistica
+from Pronostico import Pronostico
+from Clasificacion import Clasificacion
 
 # Configuraciones iniciales
 
@@ -470,92 +474,106 @@ if selected == "Regresion":
             #st.write(clase)
             clases.append(clase)            
             if contador > 1:
-                st.header('LA VARIABLE TIENE MAS DE DOS CLASES O POSIBLES VALORES')
+                st.header('LA VARIABLE CLASE TIENE MAS DE DOS CLASES O POSIBLES VALORES')
+                contador = contador + 1
                 break
             contador = contador + 1
-        st.write('')
-        st.subheader('Defina el numero de registros por clase para el conjunto de datos.')
-        logistico.datos[variable_clase] = logistico.datos[variable_clase].replace({clases[0]: 0, clases[1]: 1})
+        st.write(contador)
+        if contador == 2:
 
-        colu1, colu2, colu3 = st.columns(3)
-        with colu1:
-            #st.write(logistico.datos)
-            st.markdown('Cantidad de elementos por clase.')
-            tamanios = logistico.datos.groupby(variable_clase).size()
-            st.write(tamanios)
-        with colu2:
-            texto = "Tamaño de la clase " + str(primer_clase)
-            clase_1_size = st.number_input(texto, min_value=0, max_value=tamanios[0], value=tamanios[0], step=1, format='%d')
-        with colu3: 
-            texto = "Tamaño de la clase " + str(segunda_clase)
-            clase_2_size = st.number_input(texto, min_value=0, max_value=tamanios[1], value=tamanios[1], step=1, format='%d')
+            st.write('')
+            st.subheader('Defina el numero de registros por clase para el conjunto de datos.')
+            logistico.datos[variable_clase] = logistico.datos[variable_clase].replace({clases[0]: 0, clases[1]: 1})
 
-        
+            colu1, colu2, colu3 = st.columns(3)
+            with colu1:
+                #st.write(logistico.datos)
+                st.markdown('Cantidad de elementos por clase.')
+                tamanios = logistico.datos.groupby(variable_clase).size()
+                st.write(tamanios)
+            with colu2:
+                texto = "Tamaño de la clase " + str(primer_clase)
+                clase_1_size = st.number_input(texto, min_value=0, max_value=tamanios[0], value=tamanios[0], step=1, format='%d')
+            with colu3: 
+                texto = "Tamaño de la clase " + str(segunda_clase)
+                clase_2_size = st.number_input(texto, min_value=0, max_value=tamanios[1], value=tamanios[1], step=1, format='%d')
+            
+            ceros = logistico.datos[logistico.datos[variable_clase] == 0.0 ]
+            ceros = ceros.sample(n=clase_1_size, random_state=1)
 
-        
+            unos = logistico.datos[logistico.datos[variable_clase] == 1.0 ]
+            unos = unos.sample(n=clase_2_size, random_state=1)
+            logistico.datos = pd.concat([ceros, unos])
+            logistico.datos = shuffle(logistico.datos)
+            st.write(logistico.datos)
 
-        ceros = logistico.datos[logistico.datos[variable_clase] == 0.0 ]
-        ceros = ceros.sample(n=clase_1_size, random_state=1)
+            #X = np.array(logistico.datos[logistico.variables_finales].drop([variable_clase]))
+            #PUEDE QUE SE MUERA PORQUE NO SE CONSIDERA LA VARIABLE CLASE DENTRO DE LAS VARIABLES FINALES
+            #logistico.variables_finales.append(variable_clase)
 
-        unos = logistico.datos[logistico.datos[variable_clase] == 1.0 ]
-        unos = unos.sample(n=clase_2_size, random_state=1)
-        logistico.datos = pd.concat([ceros, unos])
-        st.write(logistico.datos)
+            #st.write(logistico.variables_finales)
+            st.subheader('CONJUNTOS DE DATOS PARA ENTRENAMIENTO')
+            column1, column2, column3 = st.columns(3)
 
-        #X = np.array(logistico.datos[logistico.variables_finales].drop([variable_clase]))
-        #PUEDE QUE SE MUERA PORQUE NO SE CONSIDERA LA VARIABLE CLASE DENTRO DE LAS VARIABLES FINALES
-        #logistico.variables_finales.append(variable_clase)
+            with column1: 
+                st.markdown('Conjunto de variables independientes')
+                X = np.array(logistico.datos[logistico.variables_finales])
+                st.write(X)
 
-        #st.write(logistico.variables_finales)
-        st.subheader('CONJUNTOS DE DATOS PARA ENTRENAMIENTO')
-        column1, column2 = st.columns(2)
+            with column2:
+                st.markdown('Conjunto de la variable clase')
+                Y = np.array(logistico.datos[[variable_clase]])
+                st.write(Y)
 
-        with column1: 
-            st.markdown('Conjunto de variables independientes')
-            X = np.array(logistico.datos[logistico.variables_finales])
-            st.write(X)
+            with column3:
+                X_train, X_validation, Y_train, Y_validation = logistico.SeparaConjunto(X, Y)
+                logistico.crearModelo(X_train, Y_train)
+                probabilidades = logistico.getMatrizProbabilidades(X_validation)
+                st.write('Probabilidades de los registros')
+                st.write(probabilidades)
+           
 
-        with column2:
-            st.markdown('Conjunto de la variable clase')
-            Y = np.array(logistico.datos[[variable_clase]])
-            st.write(Y)
-        
-        X_train, X_validation, Y_train, Y_validation = logistico.SeparaConjunto(X, Y)
+            
+            Y_Clasificacion, matriz_clasificacion = logistico.getMatrizClasificacion(Y_validation, X_validation)
+            pil1, pil2 = st.columns(2)
 
-        logistico.crearModelo(X_train, Y_train)
+            with pil1: 
+                score = logistico.getScore(X_validation, Y_validation)
+                st.subheader('Score')
+                st.header('Precision del modelo: ' + str(score * 100))
+            with pil2: 
+                st.write('Matriz de clasificacion')
+                st.write(matriz_clasificacion)
+            
+            
 
-        probabilidades = logistico.getMatrizProbabilidades(X_validation)
-        st.write('Probabilidades de los registros')
-        st.write(probabilidades)
+            st.header('Ecuacion final de regresion.')
+            intercepto, coeficientes = logistico.getEcuacion()
+            ecuacion = "y = " + str(intercepto)
+            i = 0
+            for coeficiente in coeficientes[0]:
+                if coeficiente > 0:
+                    ecuacion = ecuacion + ' + ' + str(coeficiente)
+                else:
+                    ecuacion = ecuacion + ' ' + str(coeficiente)
+                ecuacion = ecuacion + '( ' + logistico.variables_finales[i] + ') '
+                i = i+1
+                #st.write(i)
+                #st.write('Coeficiente: '+ str(coeficiente[i]))
+            st.subheader(ecuacion)
+            
 
-        score = logistico.getScore(X_validation, Y_validation)
-        st.write('Score')
-        st.write(score)
-        
-        Y_Clasificacion, matriz_clasificacion = logistico.getMatrizClasificacion(Y_validation, X_validation)
-        st.write('Matriz de clasificacion')
-        st.write(matriz_clasificacion)
-
-        st.write('reporte')
-        logistico.getReporte(X_validation, Y_validation, Y_Clasificacion)
-        
-
-        intercepto, coeficientes = logistico.getEcuacion()
-        st.write('Ecuacion')
-        st.write(intercepto)
-        st.write(coeficientes)
-"""
 if selected == "Pronostico":
     with st.expander("Resumen del Algoritmo"):
         st.title(f"ARBOLES DE DECISION")
-        st.markdown("...")
+        st.markdown("Los árboles de decisión son algoritmos los cuales toman una serie de variables independientes como entrada y las analizan una por una en cada uno de los diferentes niveles del árbol partiendo de una raíz para obtener el determinado valor de una variable dependiente que en el caso de un pronostico es continua.")
         st.title(f"BOSQUES ALEATORIOS")
-        st.markdown("...")     
+        st.markdown("Los bosques aleatorios son algoritmos que buscan generalizar máslas soluciones que nos pueden entregar los árboles aleatorios mediante la combinación de varios de estos árboles en la misma estructura de tal forma que cada uno de ellos aporte una solución similar para después llegar a un consenso evitando además un sobreajuste en los datos.")     
 
     st.title(f"DATOS")
 
     #LECTURA DE LOS DATOS
-    pronostico = Logistica()
+    pronostico = Pronostico()
     pronostico.LeerDatos(id = 'pronostico')
 
     if pronostico.archivo is not None:
@@ -578,26 +596,169 @@ if selected == "Pronostico":
             st.markdown('La matriz de datos con sus variables finales se encuentra a continuacion.')
             matriz_variables_finales = pronostico.getVariablesFinales()
             st.write(matriz_variables_finales)
+            st.write('')
+            st.subheader('Defina la variable pronostico')
+            variable_pronostico = st.selectbox(
+                'Variable Pronostico',
+                pronostico.datos.columns)
+            st.write('Variable Pronostico Seleccionada:', variable_pronostico)
 
         #st.write('You selected:', options)
         with c2: 
+            st.write('')
             st.subheader('Mapa de calor.')
             st.pyplot(mapa_de_calor)
+        
+        st.write(type(pronostico.datos[variable_pronostico][0]))
+        
+        if (type(pronostico.datos[variable_pronostico][0]) != str):
+            #DEFINICION DEL CONJUNTO DE DATOS
+            st.subheader('CONJUNTOS DE DATOS PARA ENTRENAMIENTO')
+            column1, column2, column3 = st.columns(3)
+
+            with column1: 
+                st.markdown('Conjunto de variables independientes')
+                X = np.array(pronostico.datos[pronostico.variables_finales])
+                st.write(X)
+
+            with column2:
+                st.markdown('Conjunto de la variable pronostico')
+                Y = np.array(pronostico.datos[[variable_pronostico]])
+                st.write(Y)
+            
+            X_train, X_test, Y_train, Y_test = pronostico.SeparaConjunto(X, Y)
+
+            with st.expander("Arboles de decision"):
+                st.subheader('Defina los hiperparametros del arbol')
+                col1, col2, col3 = st.columns(3)
+
+                with col1: 
+                    profundidad = st.slider('Profundidad', min_value = 3, max_value = 30, step = 1)
+                    #st.write(profundidad)
+                with col2: 
+                    divisiones = st.slider('Numero de registros minimo para dividir', min_value = 2,max_value = 50, step = 1)
+                    #st.write(divisiones)
+                with col3: 
+                    hojas = st.slider('numero minimo de registros en las hojas', min_value = 2,max_value = 50, step = 1)
+                    #st.write(hojas)
+
+                pronostico.crearArbol(profundidad, divisiones, hojas, X_train, Y_train)
+
+                valores_pronosticados = pronostico.generarPronosticoArbol(X_test)
+
+                #comparacion = pd.DataFrame(Y_test, valores_pronosticados)
+                #pronostico.generaGraficaComparacion('var_x', 'var_y', Y_test, valores_pronosticados)
+                #st.pyplot(comparacion)
+
+                colu1, colu2 = st.columns(2)
+
+                with colu1:
+                    st.header('Score')
+                    pronostico.genScore(Y_test, valores_pronosticados)
+                    st.subheader('Precision final del modelo: ' + str(pronostico.score * 100))
+
+                    for i in range (3): st.write('')
+                    st.subheader('Metricas de desempeño')
+                    mae, mse, rmse = pronostico.getMetricas(Y_test, valores_pronosticados)
+                    st.write("MAE: %.4f" % mae)
+                    st.write("MSE: %.4f" % mse)
+                    st.write("RMSE: %.4f" % rmse)
+
+                    for i in range (3): st.write('')
+                    st.subheader('Variables ordenadas por importancia')
+                    importancia_variables = pronostico.getImportancia()
+                    st.write(importancia_variables)
+                with colu2:
+                    st.write('ARBOL')
+                    arbol_desicion = pronostico.genArbol()
+                    st.pyplot(arbol_desicion)
+
+                #st.write('Reporte')
+                #reporte = pronostico.getReporte()
+                #st.write(reporte)
+            
+            with st.expander("Bosques aleatorios"):
+                st.header('MODELO DE BOSQUES ALEATORIOS')
+                st.subheader('Defina los hiperparametros del bosque')
+                col1, col2, col3, col4, col5 = st.columns(5)
+
+                with col1: 
+                    profundidad = st.slider('Profundidad bosque', min_value = 3, max_value = 30, step = 1)
+                    #st.write(profundidad)
+                with col2: 
+                    divisiones = st.slider('Numero de registros minimo para dividir bosque', min_value = 2,max_value = 50, step = 1)
+                    #st.write(divisiones)
+                with col3: 
+                    hojas = st.slider('Numero minimo de registros en las hojas bosque', min_value = 2,max_value = 50, step = 1)
+                    #st.write(hojas)
+                with col4: 
+                    no_estimadores = st.slider('Numero minimo de estimadores bosque', min_value = 15,max_value = 300, step = 1)
+                    #st.write(no_estimadores)
+                with col5: 
+                    no_variables = st.slider('numero minimo de variables a considerar bosque', min_value = 2,max_value = len(pronostico.variables_finales), step = 1)
+                    #st.write(no_variables)
+
+                pronostico.crearBosque(no_estimadores, no_variables, profundidad, divisiones, hojas, X_train, Y_train)
+
+                valores_pronosticados = pronostico.generarPronosticoBosque(X_test)
+
+                #comparacion = pd.DataFrame(Y_test, valores_pronosticados)
+                #pronostico.generaGraficaComparacion('var_x', 'var_y', Y_test, valores_pronosticados)
+                #st.pyplot(comparacion)
+
+                colu1, colu2 = st.columns(2)
+
+                with colu1:
+                    for i in range (3): st.write('')
+                    st.subheader('Numero de arbol en el bosque.')
+                    no_estimador = st.slider('Numero de estimador en el bosque', min_value = 0,max_value = no_estimadores-1, step = 1)
+                    
+
+                    
+                    st.header('Score')
+                    pronostico.genScore(Y_test, valores_pronosticados)
+                    st.subheader('Precision final del modelo: ' + str(pronostico.score * 100))
+                    
+                    for i in range (3): st.write('')
+                    st.subheader('Metricas de desempeño')
+                    mae, mse, rmse = pronostico.getMetricas(Y_test, valores_pronosticados)
+                    st.write("MAE: %.4f" % mae)
+                    st.write("MSE: %.4f" % mse)
+                    st.write("RMSE: %.4f" % rmse)
+
+                    for i in range (3): st.write('')
+                    st.subheader('Variables ordenadas por importancia')
+                    importancia_variables = pronostico.getImportancia()
+                    st.write(importancia_variables)
+
+                    
+                with colu2:
+                    st.subheader('ARBOL')
+                    muestra_bosque = pronostico.genBosque(no_estimador)
+                    st.pyplot(muestra_bosque)
+
+                #st.write('Reporte')
+                #reporte = pronostico.getReporte()
+                #st.write(reporte)
+
+        else:
+            st.write('La variable pronostoco no es numerica')
+            
 
 if selected == "Clasificacion":
     with st.expander("Resumen del Algoritmo"):
         st.title(f"ARBOLES DE DECISION")
-        st.markdown("...")
+        st.markdown("Los árboles de decisión son algoritmos los cuales toman una serie de variables independientes como entrada y las analizan una por una en cada uno de los diferentes niveles del árbol partiendo de una raíz para obtener el determinado valor de una variable dependiente que en el caso de una clasificacion esta variable es nominal (A, B, C, etc.) o discreta.")
         st.title(f"BOSQUES ALEATORIOS")
-        st.markdown("...")
+        st.markdown("Los bosques aleatorios son algoritmos que buscan generalizar máslas soluciones que nos pueden entregar los árboles aleatorios mediante la combinación de varios de estos árboles en la misma estructura de tal forma que cada uno de ellos aporte una solución similar para después llegar a un consenso evitando además un sobreajuste en los datos.")
 
 
 
     st.title(f"DATOS")
 
     #LECTURA DE LOS DATOS
-    clasificacion = Logistica()
-    clasificacion.LeerDatos(id = 'logistica')
+    clasificacion = Clasificacion()
+    clasificacion.LeerDatos(id = 'clasificacion')
 
     if clasificacion.archivo is not None:
         st.title(f"SELECCION DE CARACTERISTICAS")
@@ -624,6 +785,189 @@ if selected == "Clasificacion":
         with c2: 
             st.subheader('Mapa de calor.')
             st.pyplot(mapa_de_calor)
+        
 
-"""
+        st.write('')
+        st.subheader('Defina la variable clase y sus valores.')
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            variable_clase = st.selectbox(
+                'Variable clase',
+                clasificacion.datos.columns)
+            st.write('Variable Clase:', variable_clase)
+            clases = []
+            contador = 0
+            for clase in pd.unique(clasificacion.datos[variable_clase]):
+                #st.write(clase)
+                clases.append(clase)            
+                if contador > 1:
+                    st.header('LA VARIABLE CLASE TIENE MAS DE DOS CLASES O POSIBLES VALORES')
+                    contador = contador + 1
+                    break
+                contador = contador + 1
+            #st.write(contador)
+            if contador == 2:
+
+                st.write('')
+                st.subheader('Tamaño de cada una de las clases.')
+                clase_1_size = 2
+                clase_2_size = 2
+                st.markdown('Cantidad de elementos por clase.')
+                tamanios = clasificacion.datos.groupby(variable_clase).size()
+                st.write(tamanios)
+
+                primer_clase = tamanios.axes[0][0]
+                segunda_clase = tamanios.axes[0][1]
+
+        with col2:
+            for i in range(10): st.write('')
+            texto = "Numero de registros de la primera clase" 
+            clase_1_size = st.number_input(texto, min_value=0, max_value=tamanios[0], value=tamanios[0], step=1, format='%d')
+        with col3:
+            for i in range(10): st.write('')
+            texto = "Numero de registros de la segunda clase"
+            clase_2_size = st.number_input(texto, min_value=0, max_value=tamanios[1], value=tamanios[1], step=1, format='%d')
+
+        ceros = clasificacion.datos[clasificacion.datos[variable_clase] == primer_clase ]
+        #st.write(ceros[variable_clase].size)
+        ceros = ceros.sample(n=clase_1_size, random_state=1)
+
+
+        unos = clasificacion.datos[clasificacion.datos[variable_clase] == segunda_clase ]
+        #st.write(unos[variable_clase].size)
+        unos = unos.sample(n=clase_2_size - 1, random_state=1)
+        clasificacion.datos = pd.concat([ceros, unos])
+        clasificacion.datos = shuffle(clasificacion.datos)
+            
+        #st.write(clasificacion.datos)
+
+        st.subheader('CONJUNTOS DE DATOS PARA ENTRENAMIENTO')
+        column1, column2= st.columns(2)
+
+        with column1: 
+            st.markdown('Conjunto de variables independientes')
+            X = np.array(clasificacion.datos[clasificacion.variables_finales])
+            st.write(X)
+
+        with column2:
+            st.markdown('Conjunto de la variable clase')
+            Y = np.array(clasificacion.datos[[variable_clase]])
+            st.write(Y)
+        
+        st.header('ALGORITMOS DE CLASIFICACION')
+        
+        with st.expander("Arboles de desicion"):
+            st.title(f"Arboles de desicion")
+
+            X_train, X_validation, Y_train, Y_validation = clasificacion.SeparaConjunto(X, Y)
+
+            st.subheader('Defina los hiperparametros del arbol')
+            col1, col2, col3 = st.columns(3)
+
+            with col1: 
+                profundidad = st.slider('Profundidad', min_value = 3, max_value = 30, step = 1)
+                    #st.write(profundidad)
+            with col2: 
+                divisiones = st.slider('Numero de registros minimo para dividir', min_value = 2,max_value = 50, step = 1)
+                    #st.write(divisiones)
+            with col3: 
+                hojas = st.slider('numero minimo de registros en las hojas', min_value = 2,max_value = 50, step = 1)
+                    #st.write(hojas)
+            
+            clasificacion.genArbolClasificacion(profundidad, divisiones, hojas, X_train, Y_train)
+
+            valores_pronosticados = clasificacion.getClasificacionArbol(X_validation)
+
+            colu1, colu2 = st.columns(2)
+
+            with colu1:
+                st.header('Score')
+                score = clasificacion.getScore(X_validation, Y_validation)
+                st.subheader('Precision final del modelo: ' + str(score * 100))
+
+                for i in range (3): st.write('')
+                st.subheader('Matriz de clasificasion')
+                matriz_clasificasion, Y_Clasificacion = clasificacion.getMatrizClasificacion(X_validation, Y_validation)
+                st.write(matriz_clasificasion)
+
+                for i in range (3): st.write('')
+                st.subheader('Variables ordenadas por importancia')
+                importancia_variables = clasificacion.getImportancia()
+                st.write(importancia_variables)
+
+            with colu2:
+                st.write('ARBOL')
+                arbol_desicion = clasificacion.getArbolClasificacion(Y_Clasificacion)
+                st.pyplot(arbol_desicion)
+
+
+        
+        with st.expander("Bosques Aleatorios"):
+            st.subheader('Defina los hiperparametros del bosque')
+            col1, col2, col3, col4, col5 = st.columns(5)
+
+            with col1: 
+                profundidad = st.slider('Profundidad bosque', min_value = 3, max_value = 30, step = 1)
+                #st.write(profundidad)
+            with col2: 
+                divisiones = st.slider('Numero de registros minimo para dividir bosque', min_value = 2,max_value = 50, step = 1)
+                #st.write(divisiones)
+            with col3: 
+                hojas = st.slider('Numero minimo de registros en las hojas bosque', min_value = 2,max_value = 50, step = 1)
+                #st.write(hojas)
+            with col4: 
+                no_estimadores = st.slider('Numero minimo de estimadores bosque', min_value = 15,max_value = 300, step = 1)
+                #st.write(no_estimadores)
+            with col5: 
+                no_variables = st.slider('numero minimo de variables a considerar bosque', min_value = 2,max_value = len(clasificacion.variables_finales), step = 1)
+                #st.write(no_variables)
+
+            clasificacion.genBosqueClasificasion(no_estimadores, no_variables, profundidad, divisiones, hojas, X_train, Y_train)
+
+            valores_pronosticados = clasificacion.valoresPronosticados(X_validation)
+
+
+
+            #comparacion = pd.DataFrame(Y_test, valores_pronosticados)
+            #pronostico.generaGraficaComparacion('var_x', 'var_y', Y_test, valores_pronosticados)
+            #st.pyplot(comparacion)
+
+            colu1, colu2 = st.columns(2)
+
+            with colu1:
+                for i in range (3): st.write('')
+                st.subheader('Numero de arbol en el bosque.')
+                no_estimador = st.slider('Numero de estimador en el bosque', min_value = 0,max_value = no_estimadores, step = 1)
+                
+
+                
+                st.header('Score')
+                presicion = clasificacion.getScore(X_validation, Y_validation)
+                st.subheader('Precision final del modelo: ' + str(presicion * 100))
+                
+                for i in range (3): st.write('')
+                st.subheader('Matriz de clasificasion')
+                matriz_clasificasion, Y_Clasificacion = clasificacion.getMatrizClasificacion(X_validation, Y_validation)
+                st.write(matriz_clasificasion)
+
+                for i in range (3): st.write('')
+                st.subheader('Variables ordenadas por importancia')
+                importancia_variables = clasificacion.getImportancia()
+                st.write(importancia_variables)
+
+                
+            with colu2:
+                st.subheader('ARBOL')
+                muestra_bosque = clasificacion.getBosqueClasificacion(no_estimador, valores_pronosticados)
+                st.pyplot(muestra_bosque)
+
+            #st.write('Reporte')
+            #reporte = pronostico.getReporte()
+            #st.write(reporte)
+
+            
+
+
 
