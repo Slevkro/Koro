@@ -63,3 +63,7 @@ class Logistica(Algoritmo):
             MatrizVariables = pd.DataFrame(MatrizVariables)
             MatrizVariables.columns = self.variables_finales
             return MatrizVariables
+    
+    def genPronosticos(self, variables):
+        registro = pd.DataFrame(variables)
+        return self.Clasificacion.predict(registro)

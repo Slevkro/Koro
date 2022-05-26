@@ -23,6 +23,7 @@ from Clasificacion import Clasificacion
 # Configuraciones iniciales
 
 st.set_page_config(layout="wide")
+st.set_option('deprecation.showPyplotGlobalUse', False)
 
 hide_menu_style = """
     <style>
@@ -388,7 +389,7 @@ if selected == "Clustering":
         with st.expander("Implementacion del metodo de la rodilla"):
             st.title(f"Distancias")
             rodilla_ = colador.getRodillaExacta()
-            #st.write(rodilla_)
+            st.pyplot(fig=rodilla_, clear_figure=None)
         
         num_clusters_par_final, centroides_particional = colador.ClusterParticional(matriz_variables_finales, num_clusters_par)
         columna1, columna2 = st.columns(2)
@@ -478,7 +479,7 @@ if selected == "Regresion":
                 contador = contador + 1
                 break
             contador = contador + 1
-        st.write(contador)
+        #st.write(contador)
         if contador == 2:
 
             st.write('')
@@ -561,6 +562,26 @@ if selected == "Regresion":
                 #st.write(i)
                 #st.write('Coeficiente: '+ str(coeficiente[i]))
             st.subheader(ecuacion)
+
+            st.subheader('Generar nuevos pronosticos.')
+            
+            columnas1, columnas2 = st.columns(2)
+            with columnas1:
+                valores_clasificasion = {}
+                for variable in logistico.variables_finales:
+                    number = st.number_input(variable, min_value=0, max_value=10000000000, value=1, step=1, format='%d')
+                    valores_clasificasion[variable] = [number]
+                    #st.write('The current number is ', number)
+            with columnas2:
+                
+                pronostico = logistico.genPronosticos(valores_clasificasion)
+                if (pronostico == 0):
+                    st.write(primer_clase)
+                    st.subheader('Pronostico: ' + str(primer_clase))
+                else:
+                    st.subheader('Pronostico: ' + str(segunda_clase))
+                
+                
             
 
 if selected == "Pronostico":
@@ -585,7 +606,7 @@ if selected == "Pronostico":
         c1, c2 = st.columns(2)
 
         with c1:
-            st.subheader('Seleccion de caracteristicas.')
+            st.subheader('Defina las variables dependientes.')
             pronostico.variables_iniciales = list(pronostico.distancias.matrizCorrelaciones.columns.values)
             options = st.multiselect(
             'Elimina las variables con las que no desees trabajar, puedes observar sus relaciones en el mapa de calor a la derecha.',
@@ -609,7 +630,7 @@ if selected == "Pronostico":
             st.subheader('Mapa de calor.')
             st.pyplot(mapa_de_calor)
         
-        st.write(type(pronostico.datos[variable_pronostico][0]))
+        #st.write(type(pronostico.datos[variable_pronostico][0]))
         
         if (type(pronostico.datos[variable_pronostico][0]) != str):
             #DEFINICION DEL CONJUNTO DE DATOS
@@ -669,13 +690,23 @@ if selected == "Pronostico":
                     importancia_variables = pronostico.getImportancia()
                     st.write(importancia_variables)
                 with colu2:
-                    st.write('ARBOL')
+                    st.subheader('ARBOL')
                     arbol_desicion = pronostico.genArbol()
-                    st.pyplot(arbol_desicion)
+                    st.graphviz_chart(arbol_desicion)
 
-                #st.write('Reporte')
-                #reporte = pronostico.getReporte()
-                #st.write(reporte)
+                st.subheader('Generar nuevos pronosticos.')
+                
+                columnas1, columnas2 = st.columns(2)
+                with columnas1:
+                    valores_clasificasion = {}
+                    for variable in pronostico.variables_finales:
+                        number = st.number_input(variable, min_value=0, max_value=10000000000, value=1, step=1, format='%d')
+                        valores_clasificasion[variable] = [number]
+                        #st.write('The current number is ', number)
+                with columnas2:
+                    
+                    valor = pronostico.genPronosticosArbol(valores_clasificasion)
+                    st.subheader('Pronostico: ' + str(valor))
             
             with st.expander("Bosques aleatorios"):
                 st.header('MODELO DE BOSQUES ALEATORIOS')
@@ -735,11 +766,26 @@ if selected == "Pronostico":
                 with colu2:
                     st.subheader('ARBOL')
                     muestra_bosque = pronostico.genBosque(no_estimador)
-                    st.pyplot(muestra_bosque)
+                    st.graphviz_chart(muestra_bosque)
 
                 #st.write('Reporte')
                 #reporte = pronostico.getReporte()
                 #st.write(reporte)
+
+                st.subheader('Generar nuevos pronosticos.')
+                
+                columnas1, columnas2 = st.columns(2)
+                with columnas1:
+                    valores_clasificasion = {}
+                    for variable in pronostico.variables_finales:
+                        number = st.number_input(variable + variable, min_value=0, max_value=10000000000, value=1, step=1, format='%d')
+                        valores_clasificasion[variable] = [number]
+                        #st.write('The current number is ', number)
+                with columnas2:
+                    
+                    valor = pronostico.genPronosticosBosque(valores_clasificasion)
+                    for i in range(3): st.write('')
+                    st.subheader('Pronostico: ' + str(valor))
 
         else:
             st.write('La variable pronostoco no es numerica')
@@ -820,152 +866,189 @@ if selected == "Clasificacion":
 
                 primer_clase = tamanios.axes[0][0]
                 segunda_clase = tamanios.axes[0][1]
+        
+        if contador == 2:
+            with col2:
+                for i in range(10): st.write('')
+                texto = "Numero de registros de la primera clase" 
+                clase_1_size = st.number_input(texto, min_value=0, max_value=tamanios[0], value=tamanios[0], step=1, format='%d')
+            with col3:
+                for i in range(10): st.write('')
+                texto = "Numero de registros de la segunda clase"
+                clase_2_size = st.number_input(texto, min_value=0, max_value=tamanios[1], value=tamanios[1], step=1, format='%d')
 
-        with col2:
-            for i in range(10): st.write('')
-            texto = "Numero de registros de la primera clase" 
-            clase_1_size = st.number_input(texto, min_value=0, max_value=tamanios[0], value=tamanios[0], step=1, format='%d')
-        with col3:
-            for i in range(10): st.write('')
-            texto = "Numero de registros de la segunda clase"
-            clase_2_size = st.number_input(texto, min_value=0, max_value=tamanios[1], value=tamanios[1], step=1, format='%d')
-
-        ceros = clasificacion.datos[clasificacion.datos[variable_clase] == primer_clase ]
-        #st.write(ceros[variable_clase].size)
-        ceros = ceros.sample(n=clase_1_size, random_state=1)
+            ceros = clasificacion.datos[clasificacion.datos[variable_clase] == primer_clase ]
+            #st.write(ceros[variable_clase].size)
+            ceros = ceros.sample(n=clase_1_size, random_state=1)
 
 
-        unos = clasificacion.datos[clasificacion.datos[variable_clase] == segunda_clase ]
-        #st.write(unos[variable_clase].size)
-        unos = unos.sample(n=clase_2_size - 1, random_state=1)
-        clasificacion.datos = pd.concat([ceros, unos])
-        clasificacion.datos = shuffle(clasificacion.datos)
+            unos = clasificacion.datos[clasificacion.datos[variable_clase] == segunda_clase ]
+            #st.write(unos[variable_clase].size)
+            unos = unos.sample(n=clase_2_size - 1, random_state=1)
+            clasificacion.datos = pd.concat([ceros, unos])
+            clasificacion.datos = shuffle(clasificacion.datos)
+                
+            #st.write(clasificacion.datos)
+
+            st.subheader('CONJUNTOS DE DATOS PARA ENTRENAMIENTO')
+            column1, column2= st.columns(2)
+
+            with column1: 
+                st.markdown('Conjunto de variables independientes')
+                X = np.array(clasificacion.datos[clasificacion.variables_finales])
+                st.write(X)
+
+            with column2:
+                st.markdown('Conjunto de la variable clase')
+                Y = np.array(clasificacion.datos[[variable_clase]])
+                st.write(Y)
             
-        #st.write(clasificacion.datos)
+            st.header('ALGORITMOS DE CLASIFICACION')
+            
+            with st.expander("Arboles de desicion"):
+                st.title(f"Arboles de desicion")
 
-        st.subheader('CONJUNTOS DE DATOS PARA ENTRENAMIENTO')
-        column1, column2= st.columns(2)
+                X_train, X_validation, Y_train, Y_validation = clasificacion.SeparaConjunto(X, Y)
 
-        with column1: 
-            st.markdown('Conjunto de variables independientes')
-            X = np.array(clasificacion.datos[clasificacion.variables_finales])
-            st.write(X)
+                st.subheader('Defina los hiperparametros del arbol')
+                col1, col2, col3 = st.columns(3)
 
-        with column2:
-            st.markdown('Conjunto de la variable clase')
-            Y = np.array(clasificacion.datos[[variable_clase]])
-            st.write(Y)
-        
-        st.header('ALGORITMOS DE CLASIFICACION')
-        
-        with st.expander("Arboles de desicion"):
-            st.title(f"Arboles de desicion")
+                with col1: 
+                    profundidad = st.slider('Profundidad', min_value = 3, max_value = 30, step = 1)
+                        #st.write(profundidad)
+                with col2: 
+                    divisiones = st.slider('Numero de registros minimo para dividir', min_value = 2,max_value = 50, step = 1)
+                        #st.write(divisiones)
+                with col3: 
+                    hojas = st.slider('numero minimo de registros en las hojas', min_value = 2,max_value = 50, step = 1)
+                        #st.write(hojas)
+                
+                clasificacion.genArbolClasificacion(profundidad, divisiones, hojas, X_train, Y_train)
 
-            X_train, X_validation, Y_train, Y_validation = clasificacion.SeparaConjunto(X, Y)
+                valores_pronosticados = clasificacion.getClasificacionArbol(X_validation)
 
-            st.subheader('Defina los hiperparametros del arbol')
-            col1, col2, col3 = st.columns(3)
+                colu1, colu2 = st.columns(2)
 
-            with col1: 
-                profundidad = st.slider('Profundidad', min_value = 3, max_value = 30, step = 1)
+                with colu1:
+                    st.header('Score')
+                    score = clasificacion.getScore(X_validation, Y_validation)
+                    st.subheader('Precision final del modelo: ' + str(score * 100))
+
+                    for i in range (3): st.write('')
+                    st.subheader('Matriz de clasificasion')
+                    matriz_clasificasion, Y_Clasificacion = clasificacion.getMatrizClasificacion(X_validation, Y_validation)
+                    st.write(matriz_clasificasion)
+
+                    for i in range (3): st.write('')
+                    st.subheader('Variables ordenadas por importancia')
+                    importancia_variables = clasificacion.getImportancia()
+                    st.write(importancia_variables)
+
+                with colu2:
+                    st.write('ARBOL')
+                    arbol_desicion = clasificacion.getArbolClasificacion(Y_Clasificacion)
+                    st.graphviz_chart(arbol_desicion)
+                
+                st.subheader('Generar nuevos pronosticos.')
+                
+                columnas1, columnas2 = st.columns(2)
+                with columnas1:
+                    valores_clasificasion = {}
+                    for variable in clasificacion.variables_finales:
+                        number = st.number_input(variable, min_value=0, max_value=10000000000, value=1, step=1, format='%d')
+                        valores_clasificasion[variable] = [number]
+                        #st.write('The current number is ', number)
+                with columnas2:
+                    
+                    pronostico = clasificacion.genPronosticosArbol(valores_clasificasion)
+                    if (pronostico == 0):
+                        st.write(primer_clase)
+                        st.subheader('Pronostico: ' + str(primer_clase))
+                    else:
+                        st.subheader('Pronostico: ' + str(segunda_clase))
+
+
+            
+            with st.expander("Bosques Aleatorios"):
+                st.subheader('Defina los hiperparametros del bosque')
+                col1, col2, col3, col4, col5 = st.columns(5)
+
+                with col1: 
+                    profundidad = st.slider('Profundidad bosque', min_value = 3, max_value = 30, step = 1)
                     #st.write(profundidad)
-            with col2: 
-                divisiones = st.slider('Numero de registros minimo para dividir', min_value = 2,max_value = 50, step = 1)
+                with col2: 
+                    divisiones = st.slider('Numero de registros minimo para dividir bosque', min_value = 2,max_value = 50, step = 1)
                     #st.write(divisiones)
-            with col3: 
-                hojas = st.slider('numero minimo de registros en las hojas', min_value = 2,max_value = 50, step = 1)
+                with col3: 
+                    hojas = st.slider('Numero minimo de registros en las hojas bosque', min_value = 2,max_value = 50, step = 1)
                     #st.write(hojas)
-            
-            clasificacion.genArbolClasificacion(profundidad, divisiones, hojas, X_train, Y_train)
+                with col4: 
+                    no_estimadores = st.slider('Numero minimo de estimadores bosque', min_value = 15,max_value = 300, step = 1)
+                    #st.write(no_estimadores)
+                with col5: 
+                    no_variables = st.slider('numero minimo de variables a considerar bosque', min_value = 2,max_value = len(clasificacion.variables_finales), step = 1)
+                    #st.write(no_variables)
 
-            valores_pronosticados = clasificacion.getClasificacionArbol(X_validation)
+                clasificacion.genBosqueClasificasion(no_estimadores, no_variables, profundidad, divisiones, hojas, X_train, Y_train)
 
-            colu1, colu2 = st.columns(2)
-
-            with colu1:
-                st.header('Score')
-                score = clasificacion.getScore(X_validation, Y_validation)
-                st.subheader('Precision final del modelo: ' + str(score * 100))
-
-                for i in range (3): st.write('')
-                st.subheader('Matriz de clasificasion')
-                matriz_clasificasion, Y_Clasificacion = clasificacion.getMatrizClasificacion(X_validation, Y_validation)
-                st.write(matriz_clasificasion)
-
-                for i in range (3): st.write('')
-                st.subheader('Variables ordenadas por importancia')
-                importancia_variables = clasificacion.getImportancia()
-                st.write(importancia_variables)
-
-            with colu2:
-                st.write('ARBOL')
-                arbol_desicion = clasificacion.getArbolClasificacion(Y_Clasificacion)
-                st.pyplot(arbol_desicion)
-
-
-        
-        with st.expander("Bosques Aleatorios"):
-            st.subheader('Defina los hiperparametros del bosque')
-            col1, col2, col3, col4, col5 = st.columns(5)
-
-            with col1: 
-                profundidad = st.slider('Profundidad bosque', min_value = 3, max_value = 30, step = 1)
-                #st.write(profundidad)
-            with col2: 
-                divisiones = st.slider('Numero de registros minimo para dividir bosque', min_value = 2,max_value = 50, step = 1)
-                #st.write(divisiones)
-            with col3: 
-                hojas = st.slider('Numero minimo de registros en las hojas bosque', min_value = 2,max_value = 50, step = 1)
-                #st.write(hojas)
-            with col4: 
-                no_estimadores = st.slider('Numero minimo de estimadores bosque', min_value = 15,max_value = 300, step = 1)
-                #st.write(no_estimadores)
-            with col5: 
-                no_variables = st.slider('numero minimo de variables a considerar bosque', min_value = 2,max_value = len(clasificacion.variables_finales), step = 1)
-                #st.write(no_variables)
-
-            clasificacion.genBosqueClasificasion(no_estimadores, no_variables, profundidad, divisiones, hojas, X_train, Y_train)
-
-            valores_pronosticados = clasificacion.valoresPronosticados(X_validation)
+                valores_pronosticados = clasificacion.valoresPronosticados(X_validation)
 
 
 
-            #comparacion = pd.DataFrame(Y_test, valores_pronosticados)
-            #pronostico.generaGraficaComparacion('var_x', 'var_y', Y_test, valores_pronosticados)
-            #st.pyplot(comparacion)
+                #comparacion = pd.DataFrame(Y_test, valores_pronosticados)
+                #pronostico.generaGraficaComparacion('var_x', 'var_y', Y_test, valores_pronosticados)
+                #st.pyplot(comparacion)
 
-            colu1, colu2 = st.columns(2)
+                colu1, colu2 = st.columns(2)
 
-            with colu1:
-                for i in range (3): st.write('')
-                st.subheader('Numero de arbol en el bosque.')
-                no_estimador = st.slider('Numero de estimador en el bosque', min_value = 0,max_value = no_estimadores, step = 1)
+                with colu1:
+                    for i in range (3): st.write('')
+                    st.subheader('Numero de arbol en el bosque.')
+                    no_estimador = st.slider('Numero de estimador en el bosque', min_value = 0,max_value = no_estimadores, step = 1)
+                    
+
+                    
+                    st.header('Score')
+                    presicion = clasificacion.getScore(X_validation, Y_validation)
+                    st.subheader('Precision final del modelo: ' + str(presicion * 100))
+                    
+                    for i in range (3): st.write('')
+                    st.subheader('Matriz de clasificasion')
+                    matriz_clasificasion, Y_Clasificacion = clasificacion.getMatrizClasificacion(X_validation, Y_validation)
+                    st.write(matriz_clasificasion)
+
+                    for i in range (3): st.write('')
+                    st.subheader('Variables ordenadas por importancia')
+                    importancia_variables = clasificacion.getImportancia()
+                    st.write(importancia_variables)
+
+                    
+                with colu2:
+                    st.subheader('ARBOL')
+                    muestra_bosque = clasificacion.getBosqueClasificacion(no_estimador, valores_pronosticados)
+                    st.graphviz_chart(muestra_bosque)
                 
-
+                st.subheader('Generar nuevos pronosticos.')
                 
-                st.header('Score')
-                presicion = clasificacion.getScore(X_validation, Y_validation)
-                st.subheader('Precision final del modelo: ' + str(presicion * 100))
-                
-                for i in range (3): st.write('')
-                st.subheader('Matriz de clasificasion')
-                matriz_clasificasion, Y_Clasificacion = clasificacion.getMatrizClasificacion(X_validation, Y_validation)
-                st.write(matriz_clasificasion)
+                columnas1, columnas2 = st.columns(2)
+                with columnas1:
+                    valores_clasificasion = {}
+                    for variable in clasificacion.variables_finales:
+                        number = st.number_input(variable + variable, min_value=0, max_value=10000000000, value=1, step=1, format='%d')
+                        valores_clasificasion[variable] = [number]
+                        #st.write('The current number is ', number)
+                with columnas2:
+                    
+                    pronostico = clasificacion.genPronosticosBosque(valores_clasificasion)
+                    if (pronostico == 0):
+                        st.write(primer_clase)
+                        st.subheader('Pronostico: ' + str(primer_clase))
+                    else:
+                        st.subheader('Pronostico: ' + str(segunda_clase))
 
-                for i in range (3): st.write('')
-                st.subheader('Variables ordenadas por importancia')
-                importancia_variables = clasificacion.getImportancia()
-                st.write(importancia_variables)
-
-                
-            with colu2:
-                st.subheader('ARBOL')
-                muestra_bosque = clasificacion.getBosqueClasificacion(no_estimador, valores_pronosticados)
-                st.pyplot(muestra_bosque)
-
-            #st.write('Reporte')
-            #reporte = pronostico.getReporte()
-            #st.write(reporte)
+                #st.write('Reporte')
+                #reporte = pronostico.getReporte()
+                #st.write(reporte)
 
             
 

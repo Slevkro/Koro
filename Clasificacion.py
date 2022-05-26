@@ -15,6 +15,7 @@ from sklearn.metrics import accuracy_score
 from sklearn import model_selection
 from sklearn.tree import plot_tree
 from sklearn.tree import export_text
+from sklearn import tree
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report
@@ -68,19 +69,25 @@ class Clasificacion(Algoritmo):
     def getArbolClasificacion(self, Y_Clasificacion):
         
         arbol = plt.figure(figsize=(16,16))  
-        plot_tree(self.arbolClasificacion, 
-                feature_names = self.variables_finales,
-                class_names = Y_Clasificacion)
-        plt.show()
+        #plot_tree(self.arbolClasificacion, 
+        #        feature_names = self.variables_finales,
+        #        class_names = Y_Clasificacion)
+        arbol = tree.export_graphviz(self.arbolClasificacion, out_file=None)
+        #plt.show()
+        return arbol
+
+        arbol  = tree.export_graphviz(self.arbolDecision, out_file=None)
+        #plt.show()
         return arbol
 
     def getBosqueClasificacion(self, no_estimador, Y_Clasificacion):
         Estimador = self.bosqueClasificacion.estimators_[no_estimador]
         bosque = plt.figure(figsize=(16,16))  
-        plot_tree(Estimador, 
-                feature_names = self.variables_finales,
-                class_names = Y_Clasificacion)
-        plt.show()
+        #plot_tree(Estimador, 
+        #        feature_names = self.variables_finales,
+        #        class_names = Y_Clasificacion)
+        bosque = tree.export_graphviz(Estimador, out_file=None)
+        #plt.show()
         return bosque
     
     def getReporte(self):
@@ -108,3 +115,11 @@ class Clasificacion(Algoritmo):
     def valoresPronosticados(self, X_validation):
         Y_Clasificacion = self.bosqueClasificacion.predict(X_validation)
         return Y_Clasificacion
+
+    def genPronosticosArbol(self, variables):
+        registro = pd.DataFrame(variables)
+        return self.arbolClasificacion.predict(registro)
+    
+    def genPronosticosBosque(self, variables):
+        registro = pd.DataFrame(variables)
+        return self.bosqueClasificacion.predict(registro)

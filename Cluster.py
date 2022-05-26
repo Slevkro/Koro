@@ -74,12 +74,11 @@ class Cluster(Algoritmo):
         kl = KneeLocator(range(2, 12), self.SSE, curve="convex", direction="decreasing")
         rodilla_exacta = plt.figure(figsize=(10, 7))
         kl.elbow
-        plt.style.use('ggplot')
-        #plt.plot(range(2, 12), , marker='o')
+        #plt.style.use('ggplot')
         plt.xlabel('Cantidad de clusters *k*')
         plt.ylabel('SSE')
         plt.title('Elbow Method')
-        kl.plot_knee()
+        rodilla_exacta = kl.plot_knee()
         return rodilla_exacta
 
     def ClusterParticional(self, matriz, num_clusters):

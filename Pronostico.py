@@ -15,6 +15,7 @@ from sklearn.tree import export_text
 
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+from sklearn import tree
 
 class Pronostico(Algoritmo):
 
@@ -68,16 +69,16 @@ class Pronostico(Algoritmo):
         return Importancia
     
     def genArbol(self):
-        arbol = plt.figure(figsize=(16, 16))  
-        plot_tree(self.arbolDecision, feature_names = self.variables_finales)
+        #arbol = plt.figure(figsize=(10, 10))  
+        #arbol = plot_tree(self.arbolDecision, feature_names = self.variables_finales)
+        arbol  = tree.export_graphviz(self.arbolDecision, out_file=None)
         #plt.show()
         return arbol
     
     def genBosque(self, no_estimador):
-        Estimador = self.bosqueAleatorio.estimators_[no_estimador]
+        estimador = self.bosqueAleatorio.estimators_[no_estimador]
         muestra = plt.figure(figsize=(16,16))  
-        plot_tree(Estimador, 
-                        feature_names = self.variables_finales)
+        muestra = tree.export_graphviz(estimador, out_file=None)
         return muestra
     
     def getReporte(self):
@@ -100,3 +101,11 @@ class Pronostico(Algoritmo):
             MatrizVariables = pd.DataFrame(MatrizVariables)
             MatrizVariables.columns = self.variables_finales
             return MatrizVariables
+
+    def genPronosticosArbol(self, variables):
+        registro = pd.DataFrame(variables)
+        return self.arbolDecision.predict(registro)
+    
+    def genPronosticosBosque(self, variables):
+        registro = pd.DataFrame(variables)
+        return self.bosqueAleatorio.predict(registro)
